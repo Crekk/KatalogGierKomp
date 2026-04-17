@@ -16,9 +16,17 @@ namespace KatalogGierKomp
     /// </summary>
     public partial class MainWindow : Window
     {
+        private DbManager dbManager = new();
+        private List<Game> games = new();
         public MainWindow()
         {
             InitializeComponent();
+
+            dbManager.Initialize();
+            games = dbManager.LoadGames();
+            GamesList.ItemsSource = games;
+            GameCountText.Text = $"{games.Count} {(games.Count == 1 ? "gra" : "gier")}";
+            EmptyMessage.Visibility = games.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }
