@@ -3,19 +3,16 @@ namespace KatalogGierKomp
 {
     public class DbManager
     {
-        private readonly string DbPath;
         private readonly string ConnectionString;
 
         public DbManager()
         {
-            DbPath = "games.db";
-            ConnectionString = $"Data Source={DbPath}";
+            ConnectionString = "Data Source=games.db";
         }
 
         public DbManager(string dbPath)
         {
-            DbPath = dbPath;
-            ConnectionString = $"Data Source={DbPath}";
+            ConnectionString = $"Data Source={dbPath}";
         }
 
         public void Initialize()
@@ -61,7 +58,7 @@ namespace KatalogGierKomp
                     Id = reader.GetInt32(0),
                     Title = reader.IsDBNull(1) ? "" : reader.GetString(1),
                     Image = reader.IsDBNull(2) ? null : reader.GetFieldValue<byte[]>(2),
-                    Score = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    Score = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                     Review = reader.IsDBNull(4) ? "" : reader.GetString(4),
                     Completion = reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
                 });
@@ -83,7 +80,7 @@ namespace KatalogGierKomp
             ";
             command.Parameters.AddWithValue("$title", game.Title);
             command.Parameters.AddWithValue("$image", game.Image is null ? DBNull.Value : game.Image);
-            command.Parameters.AddWithValue("$score", game.Score);
+            command.Parameters.AddWithValue("$score", game.Score is null ? DBNull.Value : game.Score);
             command.Parameters.AddWithValue("$review", game.Review);
             command.Parameters.AddWithValue("$completion", game.Completion);
             command.ExecuteNonQuery();
@@ -108,9 +105,24 @@ namespace KatalogGierKomp
             command.Parameters.AddWithValue("$id", game.Id);
             command.Parameters.AddWithValue("$title", game.Title);
             command.Parameters.AddWithValue("$image", game.Image is null ? DBNull.Value : game.Image);
-            command.Parameters.AddWithValue("$score", game.Score);
+            command.Parameters.AddWithValue("$score", game.Score is null ? DBNull.Value : game.Score);
             command.Parameters.AddWithValue("$review", game.Review);
             command.Parameters.AddWithValue("$completion", game.Completion);
+            command.ExecuteNonQuery();
+        }
+
+        public void DeleteGame(int id)
+        {
+            using var connection = new SqliteConnection(ConnectionString);
+            connection.Open();
+
+            using var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            DELETE FROM games
+            WHERE id_game = $id;
+            ";
+            command.Parameters.AddWithValue("$id", id);
             command.ExecuteNonQuery();
         }
     }

@@ -1,5 +1,3 @@
-using Microsoft.Win32;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -8,107 +6,113 @@ namespace KatalogGierKomp
     public partial class MainWindow : Window
     {
         private readonly DbManager dbManager = new();
-        private List<Game> games = new();
-        private byte[]? selectedImageBytes;
 
         public MainWindow()
         {
             InitializeComponent();
-
             dbManager.Initialize();
-            RefreshGames();
+            ShowGames();
         }
 
-        private void ShowAddFormButton_Click(object sender, RoutedEventArgs e)
+        private void AddGameButton_Click(object sender, RoutedEventArgs e)
         {
-            AddGamePanel.Visibility = Visibility.Visible;
-            TitleBox.Focus();
+            GameFormWindow window = new GameFormWindow();
+            window.Owner = this;
+
+            if (window.ShowDialog() == true && window.GameResult != null)
+            {
+                dbManager.AddGame(window.GameResult);
+                ShowGames();
+            }
         }
 
-        private void ChooseImageButton_Click(object sender, RoutedEventArgs e)
+        private void EditGameButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFileDialog
-            {
-                Title = "Choose a PNG cover image",
-                Filter = "PNG images (*.png)|*.png",
-                Multiselect = false
-            };
+            Button button = (Button)sender;
+            Game game = (Game)button.CommandParameter;
 
-            if (dialog.ShowDialog(this) != true)
+            GameFormWindow window = new GameFormWindow(game);
+            window.Owner = this;
+
+            if (window.ShowDialog() == true && window.GameResult != null)
             {
-                return;
+                dbManager.EditGame(window.GameResult);
+                ShowGames();
+            }
+        }
+
+        private void ViewGameButton_Click(object sender, RoutedEventArgs e)
+        {
+            Button button = (Button)sender;
+            Game game = (Game)button.CommandParameter;
+
+            GameDetailsWindow window = new GameDetailsWindow(game);
+            window.Owner = this;
+            window.ShowDialog();
+        }
+
+        private void DeleteGameButton_Click(object sender, RoutedEventArgs e)
+        {
+            Button button = (Button)sender;
+            Game game = (Game)button.CommandParameter;
+
+            MessageBoxResult answer = MessageBox.Show(
+                $"Delete \"{game.Title}\"?",
+                "Delete game",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (answer == MessageBoxResult.Yes)
+            {
+                dbManager.DeleteGame(game.Id);
+                ShowGames();
+            }
+        }
+
+        private void FilterOrSortChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (GamesList != null)
+            {
+                ShowGames();
+            }
+        }
+
+        private void ShowGames()
+        {
+            List<Game> games = dbManager.LoadGames();
+
+            int status = FilterBox.SelectedIndex - 1;
+            if (status >= 0)
+            {
+                games = games.Where(game => game.Completion == status).ToList();
             }
 
-            using FileStream file = new FileStream(dialog.FileName, FileMode.Open, FileAccess.Read);
-            selectedImageBytes = Utility.ImageToByteArray(file);
-            ImageFileText.Text = Path.GetFileName(dialog.FileName);
-        }
-
-        private void SaveGameButton_Click(object sender, RoutedEventArgs e)
-        {
-            string title = TitleBox.Text.Trim();
-            string review = ReviewBox.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(title))
+            switch (SortBox.SelectedIndex)
             {
-                MessageBox.Show(this, "Enter a title.", "Missing title", MessageBoxButton.OK, MessageBoxImage.Warning);
-                TitleBox.Focus();
-                return;
+                case 1:
+                    games = games.OrderBy(game => game.Title).ToList();
+                    break;
+                case 2:
+                    games = games.OrderByDescending(game => game.Title).ToList();
+                    break;
+                case 3:
+                    games = games.OrderBy(game => game.Score == null)
+                                 .ThenByDescending(game => game.Score)
+                                 .ToList();
+                    break;
+                case 4:
+                    games = games.OrderBy(game => game.Score == null)
+                                 .ThenBy(game => game.Score)
+                                 .ToList();
+                    break;
+                case 5:
+                    games = games.OrderBy(game => game.Completion).ToList();
+                    break;
             }
 
-            if (!int.TryParse(ScoreBox.Text.Trim(), out int score) || score < 0 || score > 10)
-            {
-                MessageBox.Show(this, "Enter a score from 0 to 10.", "Invalid score", MessageBoxButton.OK, MessageBoxImage.Warning);
-                ScoreBox.Focus();
-                return;
-            }
-
-            dbManager.AddGame(new Game
-            {
-                Title = title,
-                Image = selectedImageBytes,
-                Score = score,
-                Review = review,
-                Completion = GetSelectedCompletionStatus()
-            });
-
-            ResetAddForm();
-            RefreshGames();
-        }
-
-        private void CancelAddButton_Click(object sender, RoutedEventArgs e)
-        {
-            ResetAddForm();
-        }
-
-        private void RefreshGames()
-        {
-            games = dbManager.LoadGames();
             GamesList.ItemsSource = games;
             GameCountText.Text = $"{games.Count} {(games.Count == 1 ? "game" : "games")}";
             EmptyMessage.Visibility = games.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private int GetSelectedCompletionStatus()
-        {
-            if (CompletionBox.SelectedItem is ComboBoxItem selectedItem &&
-                int.TryParse(selectedItem.Tag?.ToString(), out int completion))
-            {
-                return completion;
-            }
-
-            return 0;
-        }
-
-        private void ResetAddForm()
-        {
-            TitleBox.Clear();
-            ScoreBox.Clear();
-            ReviewBox.Clear();
-            CompletionBox.SelectedIndex = 0;
-            selectedImageBytes = null;
-            ImageFileText.Text = "No PNG selected";
-            AddGamePanel.Visibility = Visibility.Collapsed;
         }
     }
 }
