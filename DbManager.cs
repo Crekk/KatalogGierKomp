@@ -1,6 +1,4 @@
 using Microsoft.Data.Sqlite;
-using System.IO;
-
 namespace KatalogGierKomp
 {
     public class DbManager
@@ -62,7 +60,7 @@ namespace KatalogGierKomp
                 {
                     Id = reader.GetInt32(0),
                     Title = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                    Image = reader.IsDBNull(2) ? null : GetBytes(reader, 2),
+                    Image = reader.IsDBNull(2) ? null : reader.GetFieldValue<byte[]>(2),
                     Score = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
                     Review = reader.IsDBNull(4) ? "" : reader.GetString(4),
                     Completion = reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
@@ -114,14 +112,6 @@ namespace KatalogGierKomp
             command.Parameters.AddWithValue("$review", game.Review);
             command.Parameters.AddWithValue("$completion", game.Completion);
             command.ExecuteNonQuery();
-        }
-
-        private static byte[] GetBytes(SqliteDataReader reader, int columnIndex)
-        {
-            using var stream = reader.GetStream(columnIndex);
-            using var memoryStream = new MemoryStream();
-            stream.CopyTo(memoryStream);
-            return memoryStream.ToArray();
         }
     }
 }

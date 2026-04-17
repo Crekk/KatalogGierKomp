@@ -39,7 +39,8 @@ namespace KatalogGierKomp
                 return;
             }
 
-            selectedImageBytes = File.ReadAllBytes(dialog.FileName);
+            using FileStream file = new FileStream(dialog.FileName, FileMode.Open, FileAccess.Read);
+            selectedImageBytes = Utility.ImageToByteArray(file);
             ImageFileText.Text = Path.GetFileName(dialog.FileName);
         }
 
